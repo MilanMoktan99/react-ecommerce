@@ -1,9 +1,30 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
+import { auth } from "../config/firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { FaUserCircle } from "react-icons/fa";
 
 const Navbar = () => {
   const { cart } = useContext(CartContext);
+  const [user, setUser] = useState(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    setShowDropdown(false);
+  };
+
+  const toggleDropdown = () => {
+    setShowDropdown((prev) => !prev);
+  };
 
   return (
     <nav style={styles.navbar}>
@@ -34,24 +55,47 @@ const Navbar = () => {
       <div style={styles.right}>
         <span style={styles.icon}>❤️</span>
 
-        {/* CART ICON WITH BADGE */}
+        {/* CART ICON */}
         <div style={styles.cartWrapper}>
           <Link to="/cart" style={styles.icon}>
             🛒
           </Link>
-
-          {cart.length > 0 && (
-            <span style={styles.cartBadge}>{cart.length}</span>
-          )}
+          {cart.length > 0 && <span style={styles.cartBadge}>{cart.length}</span>}
         </div>
 
-        <Link to='/login'>
-          <button style={styles.loginBtn}>Login</button>
-        </Link>
+        {/* LOGIN OR PROFILE */}
+        {user ? (
+          <div style={styles.profileWrapper}>
+            <div onClick={toggleDropdown} style={{ cursor: "pointer" }}>
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="profile" style={styles.profilePic} />
+              ) : (
+                <FaUserCircle size={36} color="#333" />
+              )}
+            </div>
+
+            {showDropdown && (
+              <div style={styles.dropdown}>
+                <p style={styles.dropdownItem}>
+                  Hey, {user.displayName || "User"}
+                </p>
+                <button style={styles.logoutBtn} onClick={handleLogout}>
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <Link to="/login">
+            <button style={styles.loginBtn}>Login</button>
+          </Link>
+        )}
       </div>
     </nav>
   );
 };
+
+export default Navbar;
 
 const styles = {
   navbar: {
@@ -126,6 +170,44 @@ const styles = {
     borderRadius: "4px",
     cursor: "pointer",
   },
-};
 
-export default Navbar;
+  profileWrapper: {
+    position: "relative",
+  },
+
+  profilePic: {
+    width: "36px",
+    height: "36px",
+    borderRadius: "50%",
+    objectFit: "cover",
+  },
+
+  dropdown: {
+    position: "absolute",
+    top: "45px",
+    right: 0,
+    background: "#fff",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+    borderRadius: "8px",
+    overflow: "hidden",
+    minWidth: "150px",
+    textAlign: "center",
+    zIndex: 100,
+  },
+
+  dropdownItem: {
+    padding: "10px",
+    borderBottom: "1px solid #eee",
+  },
+
+  logoutBtn: {
+    width: "100%",
+    padding: "10px",
+    border: "none",
+    backgroundColor: "#f87171",
+    color: "#fff",
+    cursor: "pointer",
+    fontWeight: "500",
+    borderRadius: "0 0 8px 8px",
+  },
+};
